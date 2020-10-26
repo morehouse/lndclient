@@ -135,6 +135,11 @@ type LightningClient interface {
 	SendCoins(ctx context.Context, addr btcutil.Address,
 		amount btcutil.Amount, sendAll bool, confTarget int32,
 		satsPerByte int64, label string) (string, error)
+
+	// ListPermissions returns a list of all RPC method URIs and the
+	// macaroon permissions that are required to access them.
+	ListPermissions(ctx context.Context) (map[string][]MacaroonPermission,
+		error)
 }
 
 // Info contains info about the connected lnd node.
@@ -2311,4 +2316,46 @@ func (s *lightningClient) SendCoins(ctx context.Context, addr btcutil.Address,
 	}
 
 	return resp.Txid, nil
+}
+
+// MacaroonPermission is a struct that holds a permission entry, consisting of
+// an entity and an action.
+type MacaroonPermission struct {
+	// Entity is the entity a permission grants access to.
+	Entity string
+
+	// Action is the action that is granted by a permission.
+	Action string
+}
+
+// ListPermissions returns a list of all RPC method URIs and the macaroon
+// permissions that are required to access them.
+func (s *lightningClient) ListPermissions(
+	ctx context.Context) (map[string][]MacaroonPermission, error) {
+
+	rpcCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
+	defer cancel()
+
+	rpcCtx = s.adminMac.WithMacaroonAuth(rpcCtx)
+
+	perms, err := s.client.ListPermissions(
+		rpcCtx, &lnrpc.ListPermissionsRequest{},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string][]MacaroonPermission)
+	for methodURI, list := range perms.MethodPermissions {
+		permissions := list.Permissions
+		result[methodURI] = make([]MacaroonPermission, len(permissions))
+		for idx, entry := range permissions {
+			result[methodURI][idx] = MacaroonPermission{
+				Entity: entry.Entity,
+				Action: entry.Action,
+			}
+		}
+	}
+
+	return result, nil
 }
