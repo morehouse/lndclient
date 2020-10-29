@@ -2174,7 +2174,7 @@ func (s *lightningClient) ListPermissions(
 	rpcCtx = s.adminMac.WithMacaroonAuth(rpcCtx)
 
 	perms, err := s.client.ListPermissions(
-		ctx, &lnrpc.ListPermissionsRequest{},
+		rpcCtx, &lnrpc.ListPermissionsRequest{},
 	)
 	if err != nil {
 		return nil, err
