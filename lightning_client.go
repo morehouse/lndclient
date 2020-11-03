@@ -575,6 +575,12 @@ type Peer struct {
 
 	// PingTime is the estimated round trip time to this peer.
 	PingTime time.Duration
+
+	// Sent is the total amount we have sent to this peer.
+	Sent btcutil.Amount
+
+	// Received is the total amount we have received from this peer.
+	Received btcutil.Amount
 }
 
 // ChannelBalance contains information about our channel balances.
@@ -2464,6 +2470,8 @@ func (s *lightningClient) ListPeers(ctx context.Context) ([]Peer,
 			BytesReceived: peer.BytesRecv,
 			Inbound:       peer.Inbound,
 			PingTime:      pingTime,
+			Sent:          btcutil.Amount(peer.SatSent),
+			Received:      btcutil.Amount(peer.SatRecv),
 		}
 	}
 
