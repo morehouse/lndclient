@@ -7,6 +7,10 @@ import (
 	"io"
 	"time"
 
+	"github.com/lightningnetwork/lnd/invoices"
+
+	"github.com/lightningnetwork/lnd/htlcswitch"
+
 	"github.com/btcsuite/btcutil"
 	"github.com/lightningnetwork/lnd/channeldb"
 	"github.com/lightningnetwork/lnd/lnrpc"
@@ -32,6 +36,14 @@ type RouterClient interface {
 	// payment update stream and an error stream.
 	TrackPayment(ctx context.Context, hash lntypes.Hash) (
 		chan PaymentStatus, chan error, error)
+
+	// SubscribeHtlcEvents subscribes to a stream of htlc events from the
+	// router. In the absence of an shared interface in htlcswitch/
+	// htlcnotfier, we use an empty interface for htlc events. Note that
+	// the wire error code and incoming boolean for link errors are missing
+	// pending exposure in lnd.
+	SubscribeHtlcEvents(ctx context.Context) (<-chan interface{},
+		<-chan error, error)
 }
 
 // PaymentStatus describe the state of a payment.
@@ -368,4 +380,244 @@ func marshallHopHint(hint zpay32.HopHint) (*lnrpc.HopHint, error) {
 		FeeProportionalMillionths: hint.FeeProportionalMillionths,
 		NodeId:                    nodeID.String(),
 	}, nil
+}
+
+// SubscribeHtlcEvents subscribes to a stream of htlc events from the
+// router. In the absence of an shared interface in htlcswitch/htlcnotfier,
+// we use an empty interface for htlc events. Note that the wire error code and
+// incoming boolean for link errors are missing pending exposure in lnd.
+func (r *routerClient) SubscribeHtlcEvents(ctx context.Context) (
+	<-chan interface{}, <-chan error, error) {
+
+	stream, err := r.client.SubscribeHtlcEvents(
+		r.routerKitMac.WithMacaroonAuth(ctx),
+		&routerrpc.SubscribeHtlcEventsRequest{},
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	errChan := make(chan error, 1)
+	htlcChan := make(chan interface{})
+
+	go func() {
+		// Close our error channel to signal that we will no longer be
+		// sending results
+		defer close(errChan)
+
+		for {
+			htlc, err := stream.Recv()
+			if err != nil {
+				select {
+				case errChan <- err:
+				case <-ctx.Done():
+				}
+
+				return
+			}
+
+			event, err := unmarshalHtlcEvent(htlc)
+			if err != nil {
+				select {
+				case errChan <- err:
+				case <-ctx.Done():
+				}
+
+				return
+			}
+
+			// Send the update to into our events channel, or exit
+			// if our context has been cancelled.
+			select {
+			case htlcChan <- event:
+
+			case <-ctx.Done():
+				return
+
+			default:
+			}
+		}
+	}()
+
+	return htlcChan, errChan, nil
+}
+
+func unmarshalHtlcEvent(event *routerrpc.HtlcEvent) (interface{}, error) {
+	ts := time.Unix(0, int64(event.TimestampNs))
+
+	var eventType htlcswitch.HtlcEventType
+	switch event.EventType {
+	case routerrpc.HtlcEvent_SEND:
+		eventType = htlcswitch.HtlcEventTypeSend
+
+	case routerrpc.HtlcEvent_RECEIVE:
+		eventType = htlcswitch.HtlcEventTypeReceive
+
+	case routerrpc.HtlcEvent_FORWARD:
+		eventType = htlcswitch.HtlcEventTypeForward
+
+	default:
+		return nil, fmt.Errorf("unknown event type: %v",
+			event.EventType)
+
+	}
+
+	key := htlcswitch.HtlcKey{
+		IncomingCircuit: channeldb.CircuitKey{
+			ChanID: lnwire.NewShortChanIDFromInt(
+				event.IncomingChannelId,
+			),
+			HtlcID: event.IncomingHtlcId,
+		},
+		OutgoingCircuit: channeldb.CircuitKey{
+			ChanID: lnwire.NewShortChanIDFromInt(
+				event.OutgoingChannelId,
+			),
+			HtlcID: event.OutgoingChannelId,
+		},
+	}
+
+	var htlcEvent interface{}
+
+	switch e := event.Event.(type) {
+	case *routerrpc.HtlcEvent_SettleEvent:
+		htlcEvent = &htlcswitch.SettleEvent{
+			HtlcKey:       key,
+			HtlcEventType: eventType,
+			Timestamp:     ts,
+		}
+
+	case *routerrpc.HtlcEvent_ForwardEvent:
+		htlcEvent = &htlcswitch.ForwardingEvent{
+			HtlcKey:       key,
+			HtlcInfo:      unmarshalHtlcInfo(e.ForwardEvent.Info),
+			HtlcEventType: eventType,
+			Timestamp:     ts,
+		}
+
+	case *routerrpc.HtlcEvent_ForwardFailEvent:
+		htlcEvent = htlcswitch.ForwardingFailEvent{
+			HtlcKey:       key,
+			HtlcEventType: eventType,
+			Timestamp:     ts,
+		}
+
+	case *routerrpc.HtlcEvent_LinkFailEvent:
+		linkErr, err := unmarshalLinkError(
+			e.LinkFailEvent.FailureDetail,
+		)
+		if err != nil {
+			return nil, err
+		}
+		htlcEvent = htlcswitch.LinkFailEvent{
+			HtlcKey:       key,
+			HtlcEventType: eventType,
+			Timestamp:     ts,
+
+			HtlcInfo: unmarshalHtlcInfo(e.LinkFailEvent.Info),
+
+			// TODO(carla): expose the msg field in link error so
+			// that we can also include our wire error.
+			LinkError: &htlcswitch.LinkError{
+				FailureDetail: linkErr,
+			},
+
+			// TODO(carla): expose this on lnrpc.
+			Incoming: false,
+		}
+
+	default:
+		return nil, fmt.Errorf("unknown htlc event type: %T",
+			event.Event)
+
+	}
+
+	return htlcEvent, nil
+}
+
+func unmarshalHtlcInfo(info *routerrpc.HtlcInfo) htlcswitch.HtlcInfo {
+	return htlcswitch.HtlcInfo{
+		IncomingTimeLock: info.IncomingTimelock,
+		OutgoingTimeLock: info.OutgoingTimelock,
+		IncomingAmt: lnwire.MilliSatoshi(
+			info.IncomingAmtMsat,
+		),
+		OutgoingAmt: lnwire.MilliSatoshi(
+			info.OutgoingAmtMsat,
+		),
+	}
+}
+
+func unmarshalLinkError(linkErr routerrpc.FailureDetail) (htlcswitch.FailureDetail, error) {
+	switch linkErr {
+	case routerrpc.FailureDetail_NO_DETAIL:
+		return htlcswitch.OutgoingFailureNone, nil
+
+	case routerrpc.FailureDetail_ONION_DECODE:
+		return htlcswitch.OutgoingFailureDecodeError, nil
+
+	case routerrpc.FailureDetail_LINK_NOT_ELIGIBLE:
+		return htlcswitch.OutgoingFailureLinkNotEligible, nil
+
+	case routerrpc.FailureDetail_ON_CHAIN_TIMEOUT:
+		return htlcswitch.OutgoingFailureOnChainTimeout, nil
+
+	case routerrpc.FailureDetail_HTLC_EXCEEDS_MAX:
+		return htlcswitch.OutgoingFailureHTLCExceedsMax, nil
+
+	case routerrpc.FailureDetail_INSUFFICIENT_BALANCE:
+		return htlcswitch.OutgoingFailureInsufficientBalance, nil
+
+	case routerrpc.FailureDetail_INCOMPLETE_FORWARD:
+		return htlcswitch.OutgoingFailureIncompleteForward, nil
+
+	case routerrpc.FailureDetail_HTLC_ADD_FAILED:
+		return htlcswitch.OutgoingFailureDownstreamHtlcAdd, nil
+
+	case routerrpc.FailureDetail_FORWARDS_DISABLED:
+		return htlcswitch.OutgoingFailureForwardsDisabled, nil
+
+	case routerrpc.FailureDetail_INVOICE_CANCELED:
+		return invoices.ResultInvoiceAlreadyCanceled, nil
+
+	case routerrpc.FailureDetail_INVOICE_UNDERPAID:
+		return invoices.ResultAmountTooLow, nil
+
+	case routerrpc.FailureDetail_INVOICE_EXPIRY_TOO_SOON:
+		return invoices.ResultExpiryTooSoon, nil
+
+	case routerrpc.FailureDetail_INVOICE_NOT_OPEN:
+		return invoices.ResultInvoiceNotOpen, nil
+
+	case routerrpc.FailureDetail_MPP_INVOICE_TIMEOUT:
+		return invoices.ResultMppTimeout, nil
+
+	case routerrpc.FailureDetail_ADDRESS_MISMATCH:
+		return invoices.ResultAddressMismatch, nil
+
+	case routerrpc.FailureDetail_SET_TOTAL_MISMATCH:
+		return invoices.ResultHtlcSetTotalMismatch, nil
+
+	case routerrpc.FailureDetail_SET_TOTAL_TOO_LOW:
+		return invoices.ResultHtlcSetTotalTooLow, nil
+
+	case routerrpc.FailureDetail_SET_OVERPAID:
+		return invoices.ResultHtlcSetOverpayment, nil
+
+	case routerrpc.FailureDetail_UNKNOWN_INVOICE:
+		return invoices.ResultInvoiceNotFound, nil
+
+	case routerrpc.FailureDetail_INVALID_KEYSEND:
+		return invoices.ResultKeySendError, nil
+
+	case routerrpc.FailureDetail_MPP_IN_PROGRESS:
+		return invoices.ResultMppInProgress, nil
+
+	case routerrpc.FailureDetail_CIRCULAR_ROUTE:
+		return htlcswitch.OutgoingFailureCircularRoute, nil
+
+	default:
+		return htlcswitch.OutgoingFailureNone, fmt.Errorf("unknown "+
+			"failure detail: %v", linkErr)
+	}
 }
