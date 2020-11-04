@@ -69,6 +69,10 @@ type LndServicesConfig struct {
 	// MacaroonDir is the directory where all lnd macaroons can be found.
 	MacaroonDir string
 
+	// CustomMacaroonPath is the full path to a custom macaroon file. If
+	// this is specified, then the value of MacaroonDir has no effect.
+	CustomMacaroonPath string
+
 	// TLSPath is the path to lnd's TLS certificate file.
 	TLSPath string
 
@@ -193,8 +197,8 @@ func NewLndServices(cfg *LndServicesConfig) (*GrpcLndServices, error) {
 	// macaroon. We don't use the pouch yet because if not all subservers
 	// are enabled, then not all macaroons might be there and the user would
 	// get a more cryptic error message.
-	readonlyMac, err := newSerializedMacaroon(
-		filepath.Join(macaroonDir, defaultReadonlyFilename),
+	readonlyMac, err := loadMacaroon(
+		macaroonDir, defaultReadonlyFilename, cfg.CustomMacaroonPath,
 	)
 	if err != nil {
 		return nil, err
@@ -208,7 +212,7 @@ func NewLndServices(cfg *LndServicesConfig) (*GrpcLndServices, error) {
 
 	// Now that we've ensured our macaroon directory is set properly, we
 	// can retrieve our full macaroon pouch from the directory.
-	macaroons, err := newMacaroonPouch(macaroonDir)
+	macaroons, err := newMacaroonPouch(macaroonDir, cfg.CustomMacaroonPath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to obtain macaroons: %v", err)
 	}
