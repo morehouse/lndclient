@@ -20,6 +20,7 @@ import (
 	"github.com/lightningnetwork/lnd/lntypes"
 	"github.com/lightningnetwork/lnd/lnwallet/chainfee"
 	"github.com/lightningnetwork/lnd/lnwire"
+	"github.com/lightningnetwork/lnd/record"
 	"github.com/lightningnetwork/lnd/routing/route"
 	"github.com/lightningnetwork/lnd/zpay32"
 	"google.golang.org/grpc"
@@ -1070,10 +1071,23 @@ type InvoiceHtlc struct {
 	// htlc arrived on.
 	ChannelID lnwire.ShortChannelID
 
+	// HtlcIndex is the index identifying the htlc on the channel.
+	HtlcIndex uint64
+
 	// Amount is the amount in millisatoshis that was paid with this htlc.
 	// Note that this may not be the full amount because invoices can be
 	// paid with multiple hltcs.
 	Amount lnwire.MilliSatoshi
+
+	// MPPTotalAmount is the total amount of the MPP payment, if the htlc
+	// is part of a MPP payment.
+	MPPTotalAmount lnwire.MilliSatoshi
+
+	// AcceptHeight is the block height at which the invoice was accepted.
+	AcceptHeight int32
+
+	// ExpiryHeight is the height at which the invoice expires.
+	ExpiryHeight int32
 
 	// AcceptTime is the time that the htlc arrived at our node.
 	AcceptTime time.Time
@@ -1081,6 +1095,12 @@ type InvoiceHtlc struct {
 	// ResolveTime is the time that the htlc was resolved (settled or failed
 	// back).
 	ResolveTime time.Time
+
+	// State is the invoice state.
+	State channeldb.HtlcState
+
+	// CustomRecords contains any custom TLV records.
+	CustomRecords record.CustomSet
 }
 
 // LookupInvoice looks up an invoice in lnd, it will error if the invoice is
@@ -1132,8 +1152,12 @@ func unmarshalInvoice(resp *lnrpc.Invoice) (*Invoice, error) {
 
 	for i, htlc := range resp.Htlcs {
 		invoiceHtlc := InvoiceHtlc{
-			ChannelID: lnwire.NewShortChanIDFromInt(htlc.ChanId),
-			Amount:    lnwire.MilliSatoshi(htlc.AmtMsat),
+			ChannelID:      lnwire.NewShortChanIDFromInt(htlc.ChanId),
+			HtlcIndex:      htlc.HtlcIndex,
+			Amount:         lnwire.MilliSatoshi(htlc.AmtMsat),
+			MPPTotalAmount: lnwire.MilliSatoshi(htlc.MppTotalAmtMsat),
+			AcceptHeight:   htlc.AcceptHeight,
+			ExpiryHeight:   htlc.ExpiryHeight,
 		}
 
 		if htlc.AcceptTime != 0 {
@@ -1142,6 +1166,31 @@ func unmarshalInvoice(resp *lnrpc.Invoice) (*Invoice, error) {
 
 		if htlc.ResolveTime != 0 {
 			invoiceHtlc.ResolveTime = time.Unix(htlc.ResolveTime, 0)
+		}
+
+		switch htlc.State {
+		case lnrpc.InvoiceHTLCState_ACCEPTED:
+			invoiceHtlc.State = channeldb.HtlcStateAccepted
+
+		case lnrpc.InvoiceHTLCState_CANCELED:
+			invoiceHtlc.State = channeldb.HtlcStateCanceled
+
+		case lnrpc.InvoiceHTLCState_SETTLED:
+			invoiceHtlc.State = channeldb.HtlcStateSettled
+
+		default:
+			return nil, fmt.Errorf("unknown invoice state: %v",
+				htlc.State)
+		}
+
+		if htlc.CustomRecords != nil {
+			invoiceHtlc.CustomRecords = make(
+				record.CustomSet, len(htlc.CustomRecords),
+			)
+
+			for key, customRecord := range htlc.CustomRecords {
+				invoiceHtlc.CustomRecords[key] = customRecord
+			}
 		}
 
 		invoice.Htlcs[i] = invoiceHtlc
