@@ -873,11 +873,15 @@ func (s *lightningClient) GetInfo(ctx context.Context) (*Info, error) {
 	defer cancel()
 
 	rpcCtx = s.adminMac.WithMacaroonAuth(rpcCtx)
-	resp, err := s.client.GetInfo(rpcCtx, &lnrpc.GetInfoRequest{})
+	resp, err := s.client.GetInfo(rpcCtx, &lnrpc.GetInfoRequest{}, grpc.WaitForReady(true))
 	if err != nil {
 		return nil, err
 	}
 
+	return newInfo(resp)
+}
+
+func newInfo(resp *lnrpc.GetInfoResponse) (*Info, error) {
 	pubKey, err := hex.DecodeString(resp.IdentityPubkey)
 	if err != nil {
 		return nil, err
