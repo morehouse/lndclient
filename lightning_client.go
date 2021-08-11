@@ -110,8 +110,9 @@ type LightningClient interface {
 
 	// CloseChannel closes the channel provided.
 	CloseChannel(ctx context.Context, channel *wire.OutPoint,
-		force bool, confTarget int32, deliveryAddr btcutil.Address) (
-		chan CloseChannelUpdate, chan error, error)
+		force bool, confTarget int32, feeRate chainfee.SatPerKWeight,
+		deliveryAddr btcutil.Address) (chan CloseChannelUpdate,
+		chan error, error)
 
 	// UpdateChanPolicy updates the channel policy for the passed chanPoint.
 	// If the chanPoint is nil, then the policy is applied for all existing
@@ -2415,13 +2416,18 @@ func (p *ChannelClosedUpdate) CloseTxid() chainhash.Hash {
 // that *does not* have an upfront shutdown addresss set.
 func (s *lightningClient) CloseChannel(ctx context.Context,
 	channel *wire.OutPoint, force bool, confTarget int32,
-	deliveryAddr btcutil.Address) (chan CloseChannelUpdate, chan error,
-	error) {
+	feeRate chainfee.SatPerKWeight, deliveryAddr btcutil.Address) (
+	chan CloseChannelUpdate, chan error, error) {
 
 	var (
 		rpcCtx  = s.adminMac.WithMacaroonAuth(ctx)
 		addrStr string
 	)
+
+	if confTarget != 0 && feeRate != 0 {
+		return nil, nil, fmt.Errorf("Cannot set conf target: %v and "+
+			"fee rate: %v", confTarget, feeRate)
+	}
 
 	if deliveryAddr != nil {
 		addrStr = deliveryAddr.String()
@@ -2435,6 +2441,7 @@ func (s *lightningClient) CloseChannel(ctx context.Context,
 			OutputIndex: channel.Index,
 		},
 		TargetConf:      confTarget,
+		SatPerByte:      int64(feeRate.FeePerKVByte() / 1000),
 		Force:           force,
 		DeliveryAddress: addrStr,
 	})
