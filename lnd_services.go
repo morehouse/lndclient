@@ -322,6 +322,10 @@ func NewLndServices(cfg *LndServicesConfig) (*GrpcLndServices, error) {
 		log.Debugf("Wait for invoices to finish")
 		invoicesClient.WaitForFinished()
 
+		// TODO[carla] stop (w/ quit channel close) vs waitforfinished here?
+		log.Debugf("Wait for router to finish")
+		routerClient.stop()
+
 		log.Debugf("Lnd services finished")
 	}
 
