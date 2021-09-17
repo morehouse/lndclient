@@ -91,6 +91,7 @@ github.com/btcsuite/btcwallet/wallet/txsizes v1.0.0/go.mod h1:pauEU8UuMFiThe5PB3
 github.com/btcsuite/btcwallet/wallet/txsizes v1.0.1-0.20210519225359-6ab9b615576f h1:bzrmHuQ3ZGWWhGDyTL0OqihQWXGXSXNuBPkDoDB8SS4=
 github.com/btcsuite/btcwallet/wallet/txsizes v1.0.1-0.20210519225359-6ab9b615576f/go.mod h1:pauEU8UuMFiThe5PB3EO+gO5kx87Me5NvdQDsTuq6cs=
 github.com/btcsuite/btcwallet/walletdb v1.3.4/go.mod h1:oJDxAEUHVtnmIIBaa22wSBPTVcs6hUp5NKWmI8xDwwU=
+github.com/btcsuite/btcwallet/walletdb v1.3.5-0.20210513043850-3a2f12e3a954/go.mod h1:oJDxAEUHVtnmIIBaa22wSBPTVcs6hUp5NKWmI8xDwwU=
 github.com/btcsuite/btcwallet/walletdb v1.3.5/go.mod h1:oJDxAEUHVtnmIIBaa22wSBPTVcs6hUp5NKWmI8xDwwU=
 github.com/btcsuite/btcwallet/walletdb v1.3.6-0.20210803004036-eebed51155ec h1:zcAU3Ij8SmqaE+ITtS76fua2Niq7DRNp46sJRhi8PiI=
 github.com/btcsuite/btcwallet/walletdb v1.3.6-0.20210803004036-eebed51155ec/go.mod h1:oJDxAEUHVtnmIIBaa22wSBPTVcs6hUp5NKWmI8xDwwU=
@@ -267,10 +268,8 @@ github.com/grpc-ecosystem/grpc-gateway v1.16.0 h1:gmcG1KaJ57LophUzW0Hy8NmPhnMZb4
 github.com/grpc-ecosystem/grpc-gateway v1.16.0/go.mod h1:BDjrQk3hbvj6Nolgz8mAMFbcEtjT1g+wF4CSlocrBnw=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.5.0 h1:ajue7SzQMywqRjg2fK7dcpc0QhFGpTR2plWfV4EZWR4=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.5.0/go.mod h1:r1hZAcvfFXuYmcKyCJI9wlyOPIZUJl6FCB8Cpca/NLE=
-github.com/guggero/lnd v0.11.0-beta.rc4.0.20210913115656-eef1b8ab8058 h1:piKaehI6LcTFisN3kHVjQc12UtjVFrL7EelNMVMUSTs=
-github.com/guggero/lnd v0.11.0-beta.rc4.0.20210913115656-eef1b8ab8058/go.mod h1:NfuzKj1Ye+h0fIShEjUQwa1DbIS85Vw8Xw3TMSMqpKU=
-github.com/guggero/lnd/kvdb v1.0.2-0.20210913115656-eef1b8ab8058 h1:I+X2oUzQAeGkNU8Rk5dslStkn93qAUo/4dXRIJJB/Gk=
-github.com/guggero/lnd/kvdb v1.0.2-0.20210913115656-eef1b8ab8058/go.mod h1:ef6Lq422YY6q7jPvgXFbeQq5iP+YHVheblXDvLYDzoE=
+github.com/guggero/lnd v0.11.0-beta.rc4.0.20210913141357-869c6475964e h1:ZYyVx909vDdSUUcb/62QSGzn04h5bWn9pGY4JHQFPAQ=
+github.com/guggero/lnd v0.11.0-beta.rc4.0.20210913141357-869c6475964e/go.mod h1:NfuzKj1Ye+h0fIShEjUQwa1DbIS85Vw8Xw3TMSMqpKU=
 github.com/hashicorp/consul/api v1.1.0/go.mod h1:VmuI/Lkw1nC05EYQWNKwWGbkg+FbDBtguAZLlVdkD9Q=
 github.com/hashicorp/consul/sdk v0.1.1/go.mod h1:VKf9jXwCTEY1QZP2MOLRhb5i/I/ssyNV1vwHyQBF0x8=
 github.com/hashicorp/errwrap v1.0.0/go.mod h1:YH+1FKiLXxHSkmPseP+kNlulaMuP3n2brvKWEqk/Jc4=
@@ -358,6 +357,8 @@ github.com/lightningnetwork/lnd/clock v1.0.1/go.mod h1:KnQudQ6w0IAMZi1SgvecLZQZ4
 github.com/lightningnetwork/lnd/healthcheck v1.0.0/go.mod h1:u92p1JGFJNMSkMvztKEwmt1P3TRnLeJBXZ3M85xkU1E=
 github.com/lightningnetwork/lnd/healthcheck v1.0.2 h1:NJsm4l5tKKDDf/6Wb3OeptY09GLUA6w5C1TnDgthCdY=
 github.com/lightningnetwork/lnd/healthcheck v1.0.2/go.mod h1:u92p1JGFJNMSkMvztKEwmt1P3TRnLeJBXZ3M85xkU1E=
+github.com/lightningnetwork/lnd/kvdb v1.0.1 h1:bSWigxPkvfkTznH4gHBAuealvs3woT0sIt9Tte04Z8w=
+github.com/lightningnetwork/lnd/kvdb v1.0.1/go.mod h1:XYnpYUhtYCY+5dxU90VXWn/DxlGAgGejEgfqU+F9h98=
 github.com/lightningnetwork/lnd/queue v1.0.1/go.mod h1:vaQwexir73flPW43Mrm7JOgJHmcEFBWWSl9HlyASoms=
 github.com/lightningnetwork/lnd/queue v1.0.4 h1:8Dq3vxAFSACPy+pKN88oPFhuCpCoAAChPBwa4BJxH4k=
 github.com/lightningnetwork/lnd/queue v1.0.4/go.mod h1:YTkTVZCxz8tAYreH27EO3s8572ODumWrNdYW2E/YKxg=

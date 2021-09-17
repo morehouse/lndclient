@@ -13,6 +13,4 @@ require (
 
 go 1.15
 
-replace github.com/lightningnetwork/lnd => github.com/guggero/lnd v0.11.0-beta.rc4.0.20210913115656-eef1b8ab8058
-
-replace github.com/lightningnetwork/lnd/kvdb => github.com/guggero/lnd/kvdb v1.0.2-0.20210913115656-eef1b8ab8058
+replace github.com/lightningnetwork/lnd => github.com/guggero/lnd v0.11.0-beta.rc4.0.20210913141357-869c6475964e
