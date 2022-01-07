@@ -186,12 +186,6 @@ type GrpcLndServices struct {
 // NewLndServices creates creates a connection to the given lnd instance and
 // creates a set of required RPC services.
 func NewLndServices(cfg *LndServicesConfig) (*GrpcLndServices, error) {
-	// We need to use a custom dialer so we can also connect to unix
-	// sockets and not just TCP addresses.
-	if cfg.Dialer == nil {
-		cfg.Dialer = lncfg.ClientAddressDialer(defaultRPCPort)
-	}
-
 	// Fall back to minimal compatible version if none if specified.
 	if cfg.CheckVersion == nil {
 		cfg.CheckVersion = minimalCompatibleVersion
@@ -254,7 +248,10 @@ func NewLndServices(cfg *LndServicesConfig) (*GrpcLndServices, error) {
 
 	// Setup connection with lnd
 	log.Infof("Creating lnd connection to %v", cfg.LndAddress)
-	conn, err := getClientConn(cfg)
+	conn, err := GetClientConn(
+		cfg.LndAddress, cfg.TLSData, cfg.TLSPath, cfg.Insecure,
+		cfg.SystemCert, cfg.Dialer,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -773,9 +770,20 @@ var (
 	maxMsgRecvSize = grpc.MaxCallRecvMsgSize(1 * 1024 * 1024 * 200)
 )
 
-func getClientConn(cfg *LndServicesConfig) (*grpc.ClientConn, error) {
+// GetClientConn establishes a grpc client connection to the address and path
+// provided. If the dialer function provided is non-nil, it will overwrite the
+// default
+func GetClientConn(lndAddr, tlsData, tlsPath string, insecure, systemCert bool,
+	dialer DialerFunc) (*grpc.ClientConn, error) {
+
+	// We need to use a custom dialer so we can also connect to unix
+	// sockets and not just TCP addresses.
+	if dialer == nil {
+		dialer = lncfg.ClientAddressDialer(defaultRPCPort)
+	}
+
 	creds, err := GetTLSCredentials(
-		cfg.TLSData, cfg.TLSPath, cfg.Insecure, cfg.SystemCert,
+		tlsData, tlsPath, insecure, systemCert,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get tls creds: %v", err)
@@ -787,11 +795,11 @@ func getClientConn(cfg *LndServicesConfig) (*grpc.ClientConn, error) {
 
 		// Use a custom dialer, to allow connections to unix sockets,
 		// in-memory listeners etc, and not just TCP addresses.
-		grpc.WithContextDialer(cfg.Dialer),
+		grpc.WithContextDialer(dialer),
 		grpc.WithDefaultCallOptions(maxMsgRecvSize),
 	}
 
-	conn, err := grpc.Dial(cfg.LndAddress, opts...)
+	conn, err := grpc.Dial(lndAddr, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to RPC server: %v",
 			err)
