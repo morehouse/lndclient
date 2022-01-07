@@ -89,8 +89,11 @@ type walletKitClient struct {
 // WalletKitClient interface.
 var _ WalletKitClient = (*walletKitClient)(nil)
 
-func newWalletKitClient(conn grpc.ClientConnInterface,
-	walletKitMac serializedMacaroon, timeout time.Duration) *walletKitClient {
+// NewWalletKitClient creates a new wallet kit client using the connection,
+// macaroon and timeout provided.
+func NewWalletKitClient(conn grpc.ClientConnInterface,
+	walletKitMac serializedMacaroon,
+	timeout time.Duration) *walletKitClient {
 
 	return &walletKitClient{
 		client:       walletrpc.NewWalletKitClient(conn),
