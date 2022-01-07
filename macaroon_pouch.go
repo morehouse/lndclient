@@ -34,10 +34,10 @@ func loadMacaroon(defaultMacDir, defaultMacFileName,
 	// default filename and always just load the custom macaroon, assuming
 	// it contains all permissions needed to use the subservers.
 	if customMacPath != "" {
-		return newSerializedMacaroon(customMacPath)
+		return NewSerializedMacaroon(customMacPath)
 	}
 
-	return newSerializedMacaroon(filepath.Join(
+	return NewSerializedMacaroon(filepath.Join(
 		defaultMacDir, defaultMacFileName,
 	))
 }
@@ -47,9 +47,9 @@ func loadMacaroon(defaultMacDir, defaultMacFileName,
 // requires that all keys and values be strings.
 type serializedMacaroon string
 
-// newSerializedMacaroon reads a new serializedMacaroon from that target
+// NewSerializedMacaroon reads a new serializedMacaroon from that target
 // macaroon path. If the file can't be found, then an error is returned.
-func newSerializedMacaroon(macaroonPath string) (serializedMacaroon, error) {
+func NewSerializedMacaroon(macaroonPath string) (serializedMacaroon, error) {
 	macBytes, err := ioutil.ReadFile(macaroonPath)
 	if err != nil {
 		return "", err
