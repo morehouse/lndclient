@@ -344,7 +344,9 @@ type routerClient struct {
 	wg           sync.WaitGroup
 }
 
-func newRouterClient(conn grpc.ClientConnInterface,
+// NewRouterClient creates a router client with the connection and macaroon
+// provided.
+func NewRouterClient(conn grpc.ClientConnInterface,
 	routerKitMac serializedMacaroon, timeout time.Duration) *routerClient {
 
 	return &routerClient{

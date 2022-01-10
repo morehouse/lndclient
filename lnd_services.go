@@ -345,7 +345,7 @@ func NewLndServices(cfg *LndServicesConfig) (*GrpcLndServices, error) {
 	invoicesClient := NewInvoicesClient(
 		conn, macaroons[invoiceMacFilename], timeout,
 	)
-	routerClient := newRouterClient(
+	routerClient := NewRouterClient(
 		conn, macaroons[routerMacFilename], timeout,
 	)
 
