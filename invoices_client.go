@@ -41,7 +41,8 @@ type invoicesClient struct {
 	wg         sync.WaitGroup
 }
 
-func newInvoicesClient(conn grpc.ClientConnInterface,
+// NewInvoicesClient creates an invoice client from the interfaces provided.
+func NewInvoicesClient(conn grpc.ClientConnInterface,
 	invoiceMac serializedMacaroon, timeout time.Duration) *invoicesClient {
 
 	return &invoicesClient{
