@@ -26,6 +26,9 @@ type InvoicesClient interface {
 
 	AddHoldInvoice(ctx context.Context, in *invoicesrpc.AddInvoiceData) (
 		string, error)
+
+	LookupInvoice(ctx context.Context,
+		hash lntypes.Hash) (*Invoice, error)
 }
 
 // InvoiceUpdate contains a state update for an invoice.
@@ -164,6 +167,36 @@ func (s *invoicesClient) AddHoldInvoice(ctx context.Context,
 		return "", err
 	}
 	return resp.PaymentRequest, nil
+}
+
+// LookupInvoice looks up an invoice in lnd, it will error if the invoice is
+// not known to lnd.
+func (s *invoicesClient) LookupInvoice(ctx context.Context,
+	hash lntypes.Hash) (*Invoice, error) {
+
+	rpcCtx, cancel := context.WithTimeout(ctx, s.timeout)
+	defer cancel()
+
+	invoiceRef := &invoicesrpc.LookupInvoiceMsg_PaymentHash{
+		PaymentHash: hash[:],
+	}
+
+	rpcReq := &invoicesrpc.LookupInvoiceMsg{
+		InvoiceRef: invoiceRef,
+	}
+
+	rpcCtx = s.invoiceMac.WithMacaroonAuth(rpcCtx)
+	resp, err := s.client.LookupInvoiceV2(rpcCtx, rpcReq)
+	if err != nil {
+		return nil, err
+	}
+
+	invoice, err := unmarshalInvoice(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return invoice, nil
 }
 
 func fromRPCInvoiceState(state lnrpc.Invoice_InvoiceState) (
