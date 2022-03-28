@@ -17,3 +17,5 @@ require (
 )
 
 go 1.15
+
+replace github.com/lightningnetwork/lnd => github.com/carlakc/lnd v0.4.2-beta.0.20220328111300-5bb5138efa18
