@@ -1096,6 +1096,75 @@ type CustomMessage struct {
 	Data []byte
 }
 
+// CustomMessageFilter provides a filter for subscribing to custom messages.
+type CustomMessageFilter struct {
+	// PeerFilter contains a set of peers that we want to receive messages
+	// from. If this map is nil, we will receive from all peers.
+	PeerFilter map[route.Vertex]bool
+
+	// TypeFilter contains a set of protocol message numbers that we want
+	// to receive in a subscription. If this map is nil, we will receive all
+	// message types.
+	TypeFilter map[uint32]bool
+}
+
+// SendMessage checks a message against our peer and type filters, returning a
+// boolean indicating whether it should be sent to a subscriber.
+func (c *CustomMessageFilter) SendMessage(msg CustomMessage) bool {
+	include := true
+
+	// If we have a peer filter set, only return messages if their peer is
+	// in our map.
+	if c.PeerFilter != nil {
+		_, peerIncluded := c.PeerFilter[msg.Peer]
+		include = include && peerIncluded
+	}
+
+	// If we have a type filter set, only return messages if their type is
+	// in our filter map.
+	if c.TypeFilter != nil {
+		_, typeIncluded := c.TypeFilter[msg.MsgType]
+		include = include && typeIncluded
+	}
+
+	return include
+}
+
+// CustomFilterOption is a functional option signature used to set filters for
+// custom message subscriptions.
+type CustomFilterOption func(*CustomMessageFilter)
+
+// CustomFilterPeers returns a functional option to filter for a specific set of
+// peers in custom message subscription.
+func CustomFilterPeers(peers []route.Vertex) CustomFilterOption {
+	return func(f *CustomMessageFilter) {
+		if len(peers) == 0 {
+			return
+		}
+
+		f.PeerFilter = make(map[route.Vertex]bool, len(peers))
+
+		for _, peer := range peers {
+			f.PeerFilter[peer] = true
+		}
+	}
+}
+
+// CustomFilterMessages returns a funcional option to filter for a specific set
+// of protocol message types in custom message subscriptions.
+func CustomFilterMessages(messages []uint32) CustomFilterOption {
+	return func(f *CustomMessageFilter) {
+		if len(messages) == 0 {
+			return
+		}
+
+		f.TypeFilter = make(map[uint32]bool)
+		for _, msgType := range messages {
+			f.TypeFilter[msgType] = true
+		}
+	}
+}
+
 var (
 	// ErrNoRouteFound is returned if we can't find a path with the passed
 	// parameters.
