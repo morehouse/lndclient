@@ -32,6 +32,7 @@ type InvoicesClient interface {
 type InvoiceUpdate struct {
 	State   invpkg.ContractState
 	AmtPaid btcutil.Amount
+	Htlcs   []InvoiceHtlc
 }
 
 type invoicesClient struct {
@@ -132,6 +133,7 @@ func (s *invoicesClient) SubscribeSingleInvoice(ctx context.Context,
 			case updateChan <- InvoiceUpdate{
 				State:   state,
 				AmtPaid: btcutil.Amount(invoice.AmtPaidSat),
+				Htlcs:   fromRpcHtlcs(invoice.Htlcs),
 			}:
 			case <-ctx.Done():
 				return

@@ -1675,6 +1675,9 @@ type InvoiceHtlc struct {
 
 	// CustomRecords is list of the custom tlv records.
 	CustomRecords map[uint64][]byte
+
+	// IncomingEndorsed indicates whether the incoming HTLC was endorsed.
+	IncomingEndorsed bool
 }
 
 // PendingHtlc represents a HTLC that is currently pending on some channel.
@@ -1766,28 +1769,9 @@ func unmarshalInvoice(resp *lnrpc.Invoice) (*Invoice, error) {
 		AmountPaid:     lnwire.MilliSatoshi(resp.AmtPaidMsat),
 		CreationDate:   time.Unix(resp.CreationDate, 0),
 		IsKeysend:      resp.IsKeysend,
-		Htlcs:          make([]InvoiceHtlc, len(resp.Htlcs)),
+		Htlcs:          fromRpcHtlcs(resp.Htlcs),
 		AddIndex:       resp.AddIndex,
 		SettleIndex:    resp.SettleIndex,
-	}
-
-	for i, htlc := range resp.Htlcs {
-		invoiceHtlc := InvoiceHtlc{
-			ChannelID:     lnwire.NewShortChanIDFromInt(htlc.ChanId),
-			Amount:        lnwire.MilliSatoshi(htlc.AmtMsat),
-			CustomRecords: htlc.CustomRecords,
-			State:         htlc.State,
-		}
-
-		if htlc.AcceptTime != 0 {
-			invoiceHtlc.AcceptTime = time.Unix(htlc.AcceptTime, 0)
-		}
-
-		if htlc.ResolveTime != 0 {
-			invoiceHtlc.ResolveTime = time.Unix(htlc.ResolveTime, 0)
-		}
-
-		invoice.Htlcs[i] = invoiceHtlc
 	}
 
 	switch resp.State {
@@ -1827,6 +1811,32 @@ func unmarshalInvoice(resp *lnrpc.Invoice) (*Invoice, error) {
 	}
 
 	return invoice, nil
+}
+
+func fromRpcHtlcs(rpcHtlcs []*lnrpc.InvoiceHTLC) []InvoiceHtlc {
+	htlcs := make([]InvoiceHtlc, len(rpcHtlcs))
+
+	for i, htlc := range rpcHtlcs {
+		invoiceHtlc := InvoiceHtlc{
+			ChannelID:        lnwire.NewShortChanIDFromInt(htlc.ChanId),
+			Amount:           lnwire.MilliSatoshi(htlc.AmtMsat),
+			CustomRecords:    htlc.CustomRecords,
+			State:            htlc.State,
+			IncomingEndorsed: htlc.IncomingEndorsed,
+		}
+
+		if htlc.AcceptTime != 0 {
+			invoiceHtlc.AcceptTime = time.Unix(htlc.AcceptTime, 0)
+		}
+
+		if htlc.ResolveTime != 0 {
+			invoiceHtlc.ResolveTime = time.Unix(htlc.ResolveTime, 0)
+		}
+
+		htlcs[i] = invoiceHtlc
+	}
+
+	return htlcs
 }
 
 // ListTransactionsOption is a functional type for an option that modifies a
