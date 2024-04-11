@@ -276,6 +276,9 @@ type SendPaymentRequest struct {
 
 	// If set, circular payments to self are permitted.
 	AllowSelfPayment bool
+
+	// EndorseOutgoing is set to endorse the outgoing HTLC from our node.
+	EndorseOutgoing routerrpc.HTLCEndorsement
 }
 
 // InterceptedHtlc contains information about a htlc that was intercepted in
@@ -393,6 +396,7 @@ func (r *routerClient) SendPayment(ctx context.Context,
 		MaxParts:         request.MaxParts,
 		OutgoingChanIds:  request.OutgoingChanIds,
 		AllowSelfPayment: request.AllowSelfPayment,
+		Endorsed:         request.EndorseOutgoing,
 	}
 	if request.MaxCltv != nil {
 		rpcReq.CltvLimit = *request.MaxCltv
