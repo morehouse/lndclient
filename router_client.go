@@ -1064,8 +1064,5 @@ func (r *routerClient) BuildRoute(ctx context.Context,
 
 func (r *routerClient) SendToRouteV2(ctx context.Context, req routerrpc.SendToRouteRequest) (*lnrpc.HTLCAttempt, error) {
 	rpcCtx := r.routerKitMac.WithMacaroonAuth(ctx)
-	ctxt, cancel := context.WithTimeout(rpcCtx, DefaultTimeout)
-	defer cancel()
-
-	return r.client.SendToRouteV2(ctxt, &req)
+	return r.client.SendToRouteV2(rpcCtx, &req)
 }
