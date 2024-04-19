@@ -76,6 +76,8 @@ type RouterClient interface {
 
 	BuildRoute(ctx context.Context,
 		req routerrpc.BuildRouteRequest) (*routerrpc.BuildRouteResponse, error)
+
+	SendToRouteV2(ctx context.Context, req routerrpc.SendToRouteRequest) (*lnrpc.HTLCAttempt, error)
 }
 
 // PaymentStatus describe the state of a payment.
@@ -1053,8 +1055,17 @@ const DefaultTimeout = 30 * time.Second
 func (r *routerClient) BuildRoute(ctx context.Context,
 	req routerrpc.BuildRouteRequest) (*routerrpc.BuildRouteResponse, error) {
 
-	ctxt, cancel := context.WithTimeout(ctx, DefaultTimeout)
+	rpcCtx := r.routerKitMac.WithMacaroonAuth(ctx)
+	ctxt, cancel := context.WithTimeout(rpcCtx, DefaultTimeout)
 	defer cancel()
 
 	return r.client.BuildRoute(ctxt, &req)
+}
+
+func (r *routerClient) SendToRouteV2(ctx context.Context, req routerrpc.SendToRouteRequest) (*lnrpc.HTLCAttempt, error) {
+	rpcCtx := r.routerKitMac.WithMacaroonAuth(ctx)
+	ctxt, cancel := context.WithTimeout(rpcCtx, DefaultTimeout)
+	defer cancel()
+
+	return r.client.SendToRouteV2(ctxt, &req)
 }
