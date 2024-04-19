@@ -25,7 +25,7 @@ type InvoicesClient interface {
 	CancelInvoice(ctx context.Context, hash lntypes.Hash) error
 
 	AddHoldInvoice(ctx context.Context, in *invoicesrpc.AddInvoiceData) (
-		string, error)
+		string, []byte, error)
 }
 
 // InvoiceUpdate contains a state update for an invoice.
@@ -145,7 +145,7 @@ func (s *invoicesClient) SubscribeSingleInvoice(ctx context.Context,
 }
 
 func (s *invoicesClient) AddHoldInvoice(ctx context.Context,
-	in *invoicesrpc.AddInvoiceData) (string, error) {
+	in *invoicesrpc.AddInvoiceData) (string, []byte, error) {
 
 	rpcCtx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
@@ -162,9 +162,9 @@ func (s *invoicesClient) AddHoldInvoice(ctx context.Context,
 	rpcCtx = s.invoiceMac.WithMacaroonAuth(rpcCtx)
 	resp, err := s.client.AddHoldInvoice(rpcCtx, rpcIn)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
-	return resp.PaymentRequest, nil
+	return resp.PaymentRequest, resp.PaymentAddr, nil
 }
 
 func fromRPCInvoiceState(state lnrpc.Invoice_InvoiceState) (
