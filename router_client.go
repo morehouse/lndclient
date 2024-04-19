@@ -73,6 +73,9 @@ type RouterClient interface {
 	// (enabled, disabled, or auto).
 	UpdateChanStatus(ctx context.Context,
 		channel *wire.OutPoint, action routerrpc.ChanStatusAction) error
+
+	BuildRoute(ctx context.Context,
+		req routerrpc.BuildRouteRequest) (*routerrpc.BuildRouteResponse, error)
 }
 
 // PaymentStatus describe the state of a payment.
@@ -1043,4 +1046,15 @@ func (r *routerClient) UpdateChanStatus(ctx context.Context,
 		},
 	)
 	return err
+}
+
+const DefaultTimeout = 30 * time.Second
+
+func (r *routerClient) BuildRoute(ctx context.Context,
+	req routerrpc.BuildRouteRequest) (*routerrpc.BuildRouteResponse, error) {
+
+	ctxt, cancel := context.WithTimeout(ctx, DefaultTimeout)
+	defer cancel()
+
+	return r.client.BuildRoute(ctxt, &req)
 }
