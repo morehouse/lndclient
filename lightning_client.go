@@ -3167,6 +3167,9 @@ type PolicyUpdateRequest struct {
 
 	// MinHtlcMsatSpecified if true, MinHtlcMsat is applied.
 	MinHtlcMsatSpecified bool
+
+	InboundBaseFeeMsat int32
+	InboundFeeRatePpm  int32
 }
 
 // UpdateChanPolicy updates the channel policy for the passed chanPoint. If
@@ -3189,6 +3192,13 @@ func (s *lightningClient) UpdateChanPolicy(ctx context.Context,
 	if req.MinHtlcMsatSpecified {
 		rpcReq.MinHtlcMsatSpecified = true
 		rpcReq.MinHtlcMsat = req.MinHtlcMsat
+	}
+
+	if req.InboundBaseFeeMsat != 0 || req.InboundFeeRatePpm != 0 {
+		rpcReq.InboundFee = &lnrpc.InboundFee{
+			BaseFeeMsat: req.InboundBaseFeeMsat,
+			FeeRatePpm:  req.InboundFeeRatePpm,
+		}
 	}
 
 	if chanPoint != nil {
